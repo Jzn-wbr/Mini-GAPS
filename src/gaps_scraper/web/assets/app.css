@@ -19,9 +19,11 @@
 * {
   box-sizing:border-box;
 }
-html { overscroll-behavior-y:contain; }
+html { min-height:100%; overscroll-behavior-y:contain; overscroll-behavior-x:none; touch-action:pan-y; }
 body {
   margin:0;
+  min-height:100vh;
+  min-height:100svh;
   background:var(--bg);
   color:var(--ink);
 }
@@ -218,12 +220,17 @@ h3 {
   color:var(--accent);
 }
 .text-button {
-  border:0;
-  background:none;
+  border:1px solid var(--module-line);
+  border-radius:8px;
+  background:var(--surface);
   color:var(--accent);
-  padding:8px 0;
+  padding:8px 12px;
   font-size:12px;
   font-weight:600;
+}
+.text-button:active {
+  background:var(--soft);
+  border-color:var(--accent);
 }
 .timeline {
   display:flex;

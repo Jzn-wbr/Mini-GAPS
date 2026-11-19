@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
   <meta name="theme-color" content="#3a6282">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -12,8 +12,8 @@
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" type="image/png" sizes="32x32" href="/assets/icon-32.png">
   <link rel="apple-touch-icon" href="/assets/icon-180.png">
-  <link rel="stylesheet" href="/assets/app.css">
-  <script type="module" src="/assets/app.js"></script>
+  <link rel="stylesheet" href="/assets/app.css?v=13">
+  <script type="module" src="/assets/app.js?v=13"></script>
 </head>
 <body>
   <div class="app-frame">
@@ -31,6 +31,7 @@
           <p id="pair-message" class="form-message" role="status"></p>
         </form>
         <p class="privacy-note">Utilisez le code temporaire qui vous a été remis. Votre mot de passe scolaire ne vous sera jamais demandé ici.</p>
+        <p class="privacy-note">Version de l’interface : 13</p>
       </section>
       <section id="workspace" hidden aria-labelledby="page-title">
         <div class="page-heading"><h1 id="page-title">Horaire</h1><button id="settings-button" class="icon-button" hidden aria-label="Réglages" title="Réglages"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 3-.6 2.3-2 .9L4.3 5.5 2.5 8.6l1.7 1.7v3.4l-1.7 1.7 1.8 3.1 2.1-.7 2 .9L9 21h6l.6-2.3 2-.9 2.1.7 1.8-3.1-1.7-1.7v-3.4l1.7-1.7-1.8-3.1-2.1.7-2-.9L15 3Z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
@@ -54,6 +55,7 @@
     <p id="notification-state" class="muted">Les notifications seront disponibles après leur configuration.</p>
     <button id="push-toggle" class="primary-button" disabled>Activer les notifications</button>
     <button id="logout" class="danger-button">Se déconnecter</button>
+    <p class="muted" id="app-version">Version de l’interface : 13</p>
   </dialog>
 </body>
 </html>

@@ -119,6 +119,20 @@ def main():
                 page.on('pageerror',lambda e:errors.append(str(e)))
                 page.goto(origin)
                 expect(page.locator('#association')).to_be_visible()
+                assert page.locator('script[type=module]').get_attribute('src')=='/assets/app.js?v=13'
+                assert page.locator('link[rel=stylesheet]').get_attribute('href')=='/assets/app.css?v=13'
+                page.evaluate("""async () => {
+                    await navigator.serviceWorker.ready;
+                    if (!navigator.serviceWorker.controller) await new Promise(resolve =>
+                        navigator.serviceWorker.addEventListener('controllerchange',resolve,{once:true}));
+                    const legacy = await caches.open('mon-ecole-shell-v11');
+                    await legacy.put('/assets/app.js',new Response('window.__staleAsset = true;',
+                        {headers:{'Content-Type':'application/javascript'}}));
+                }""")
+                page.reload()
+                expect(page.locator('#association')).to_be_visible()
+                assert page.evaluate('window.__staleAsset === undefined')
+                assert page.evaluate("async () => (await navigator.serviceWorker.getRegistration()).updateViaCache")=='none'
                 expect(page.locator('.brand')).to_have_count(0)
                 expect(page.locator('#refresh')).to_have_count(0)
                 page.locator('#pair-code').fill(code);page.locator('#device-name').fill('Browser test')
@@ -145,7 +159,7 @@ def main():
                 swipe_touch(cdp,100,week['y']+week['height']/2,170)
                 expect(page.locator('.day-button.active strong')).to_have_text(today_number)
                 expect(page.locator('.event-card')).to_have_count(3)
-                # Aucun geste applicatif ni preventDefault depuis le bord réservé au navigateur.
+                # Même les marges appartiennent à la navigation ; le calendrier garde son propre geste.
                 edge=page.locator('.day-title').evaluate("""node=>{
                     const y=node.getBoundingClientRect().top+10;
                     const touch=x=>new Touch({identifier:9,target:node,clientX:x,clientY:y});
@@ -154,8 +168,54 @@ def main():
                     node.dispatchEvent(new TouchEvent('touchend',{bubbles:true,touches:[],changedTouches:[touch(150)]}));
                     return move.defaultPrevented;
                 }""")
-                assert edge is False
+                assert edge is True
+                expect(page.locator('.day-button.active strong')).to_have_text(str((datetime.fromisoformat(day)-timedelta(days=1)).day))
+                today_button=page.get_by_role('button',name='Aujourd’hui',exact=True)
+                assert today_button.evaluate("n=>parseFloat(getComputedStyle(n).borderTopWidth)")>=1
+                today_button.click()
                 expect(page.locator('.day-button.active strong')).to_have_text(today_number)
+                # Les cartes changent le jour, y compris le retour depuis une journée vide.
+                event=page.locator('.event-card').first.bounding_box()
+                swipe_touch(cdp,270,event['y']+event['height']/2,-150)
+                expect(page.locator('#page-title')).to_have_text('Horaire')
+                expect(page.locator('.timeline .empty')).to_be_visible()
+                blank_day=page.locator('.timeline').bounding_box()
+                swipe_touch(cdp,90,blank_day['y']+blank_day['height']/2,150)
+                expect(page.locator('.event-card')).to_have_count(3)
+                expect(page.locator('.day-button.active strong')).to_have_text(today_number)
+                # Le titre, le fond hors contenu et la navigation basse changent les onglets.
+                heading=page.locator('#page-title').bounding_box()
+                swipe_touch(cdp,270,heading['y']+heading['height']/2,-150)
+                expect(page.locator('#page-title')).to_have_text('Notes')
+                assert page.evaluate("document.elementFromPoint(270,730).closest('#workspace') === null")
+                swipe_touch(cdp,270,730,-150)
+                expect(page.locator('#page-title')).to_have_text('Absences')
+                navigation=page.locator('#navigation').bounding_box()
+                swipe_touch(cdp,100,navigation['y']+20,160)
+                expect(page.locator('#page-title')).to_have_text('Notes')
+                swipe_touch(cdp,8,730,170)
+                expect(page.locator('#page-title')).to_have_text('Horaire')
+                expect(page.locator('.day-button.active strong')).to_have_text(today_number)
+                # Les deux doigts ne naviguent pas et ne modifient pas l'échelle.
+                scale=page.evaluate('visualViewport.scale')
+                cdp.send('Input.dispatchTouchEvent',{'type':'touchStart','touchPoints':[{'x':120,'y':160,'id':1},{'x':240,'y':160,'id':2}]})
+                cdp.send('Input.dispatchTouchEvent',{'type':'touchMove','touchPoints':[{'x':70,'y':160,'id':1},{'x':290,'y':160,'id':2}]})
+                cdp.send('Input.dispatchTouchEvent',{'type':'touchEnd','touchPoints':[]})
+                assert abs(page.evaluate('visualViewport.scale')-scale)<.01
+                expect(page.locator('#page-title')).to_have_text('Horaire')
+                assert page.evaluate("getComputedStyle(document.documentElement).touchAction")=='pan-y'
+                assert page.evaluate("document.querySelector('meta[name=viewport]').content.includes('user-scalable=no')")
+                assert page.evaluate("""() => {
+                    return ['gesturestart','gesturechange','gestureend','dblclick'].every(type => {
+                        const event=new Event(type,{bubbles:true,cancelable:true});
+                        document.dispatchEvent(event);return event.defaultPrevented;
+                    });
+                }""")
+                # Deux touchers rapides sur Aujourd'hui restent deux clics, sans zoom.
+                page.get_by_role('button',name='Aujourd’hui',exact=True).tap()
+                page.get_by_role('button',name='Aujourd’hui',exact=True).tap()
+                assert abs(page.evaluate('visualViewport.scale')-scale)<.01
+                expect(page.locator('.event-card')).to_have_count(3)
                 page.locator('[data-tab="notes"]').click()
                 header=page.locator('.course-header').bounding_box()
                 swipe_touch(cdp,280,header['y']+header['height']/2,-160)
@@ -184,6 +244,13 @@ def main():
                 assert page.evaluate('document.documentElement.scrollWidth <= window.innerWidth')
                 if args.screenshot:page.screenshot(path=args.screenshot,full_page=True)
                 page.locator('#settings-button').click()
+                expect(page.locator('#app-version')).to_have_text('Version de l’interface : 13')
+                settings=page.locator('#settings-dialog').bounding_box()
+                settings_cdp=context.new_cdp_session(page)
+                try:swipe_touch(settings_cdp,260,settings['y']+settings['height']/2,-130)
+                finally:settings_cdp.detach()
+                expect(page.locator('#settings-dialog')).to_be_visible()
+                expect(page.locator('#page-title')).to_have_text('Horaire')
                 expect(page.locator('#notification-state')).to_have_text('Les notifications ne sont pas encore configurées.')
                 expect(page.locator('#push-toggle')).to_be_disabled()
                 expect(page.locator('#notification-preview')).to_have_count(0)

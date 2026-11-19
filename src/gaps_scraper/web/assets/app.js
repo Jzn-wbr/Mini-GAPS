@@ -246,8 +246,12 @@ function renderSchedule(content, data) {
   }
   content.append(caption, controls, strip);
   const items = data.occurrences.filter(item => item.all_day ? item.start <= state.day && state.day < item.end : item.start.slice(0, 10) <= state.day && (item.end.slice(0, 10) > state.day || item.end.slice(0, 10) === state.day && item.end.slice(11, 19) !== '00:00:00'));
-  if (!items.length) { content.append(empty('Une journée sans cours', 'Aucun événement n’est indiqué pour cette date dans l’horaire récupéré.')); return; }
   const timeline = element('div', 'timeline');
+  if (!items.length) {
+    timeline.append(empty('Une journée sans cours', 'Aucun événement n’est indiqué pour cette date dans l’horaire récupéré.'));
+    content.append(timeline);
+    return;
+  }
   for (const item of items) {
     const row = element('article', 'event');
     const clock = element('div', 'event-time', item.all_day ? 'Journée' : time(item.start));
@@ -365,21 +369,23 @@ function selectTab(tab) {
 }
 document.querySelectorAll('[data-tab]').forEach(button => { button.onclick = () => selectTab(button.dataset.tab); });
 
-// Gestes limités au contenu : le scroll vertical, le pincement et les bords restent natifs.
+// La navigation couvre aussi les titres, marges, espaces vides et la barre inférieure.
+// Seules les zones calendrier conservent leurs gestes jour/semaine.
 let swipe = null;
 let swipeClick = null;
-const workspace = $('workspace');
-workspace.addEventListener('touchstart', event => {
+document.addEventListener('touchstart', event => {
   swipe = null; swipeClick = null; refreshIndicator();
   if (!state.session || $('settings-dialog').open || event.touches.length !== 1) return;
   const touch = event.touches[0];
-  if (touch.clientX < 24 || touch.clientX > innerWidth - 24 || window.getSelection()?.isCollapsed === false) return;
+  if (window.getSelection()?.isCollapsed === false) return;
   const week = state.tab === 'horaire' && Boolean(event.target.closest('.week-strip'));
-  if (!week && event.target.closest('button, a, input, textarea, select, [contenteditable="true"]')) return;
+  const day = state.tab === 'horaire' && Boolean(event.target.closest('.day-controls, .timeline'));
+  if (event.target.closest('input, textarea, select, [contenteditable="true"]')) return;
   swipe = {id: touch.identifier, x: touch.clientX, y: touch.clientY, started: performance.now(),
-    tab: state.tab, day: state.day, week, horizontal: false, pull: false, top: scrollY <= 0 && !state.refreshing, generation: state.generation};
+    tab: state.tab, day: state.day, mode: week ? 'week' : day ? 'day' : 'tabs',
+    horizontal: false, pull: false, top: scrollY <= 0 && !state.refreshing, generation: state.generation};
 }, {passive: true});
-workspace.addEventListener('touchmove', event => {
+document.addEventListener('touchmove', event => {
   if (!swipe) return;
   if (event.touches.length !== 1) { swipe = null; refreshIndicator(); return; }
   const touch = event.touches[0];
@@ -396,7 +402,7 @@ workspace.addEventListener('touchmove', event => {
     refreshIndicator(dy);
   } else if (swipe.horizontal && event.cancelable) event.preventDefault();
 }, {passive: false});
-workspace.addEventListener('touchend', event => {
+document.addEventListener('touchend', event => {
   const gesture = swipe; swipe = null; refreshIndicator();
   if (!gesture || event.touches.length || !state.session
       || gesture.generation !== state.generation || gesture.tab !== state.tab || $('settings-dialog').open) return;
@@ -411,9 +417,9 @@ workspace.addEventListener('touchend', event => {
   }
   if (!gesture.horizontal || Math.abs(dx) < 60 || Math.abs(dx) <= Math.abs(dy) * 1.5 || performance.now() - gesture.started > 800) return;
   const step = dx < 0 ? 1 : -1;
-  if (gesture.tab === 'horaire') {
+  if (gesture.mode !== 'tabs') {
     if (gesture.day !== state.day) return;
-    state.day = shift(state.day, step * (gesture.week ? 7 : 1)); render();
+    state.day = shift(state.day, step * (gesture.mode === 'week' ? 7 : 1)); render();
   } else {
     const tabs = ['horaire', 'notes', 'absences'];
     const next = tabs[tabs.indexOf(gesture.tab) + step];
@@ -423,12 +429,52 @@ workspace.addEventListener('touchend', event => {
   // Éviter le clic de fin de geste sur une branche ou un jour, sans bloquer un nouveau toucher.
   swipeClick = {x: touch.clientX, y: touch.clientY, until: performance.now() + 350};
 }, {passive: true});
-workspace.addEventListener('touchcancel', () => { swipe = null; refreshIndicator(); });
-workspace.addEventListener('click', event => {
+document.addEventListener('touchcancel', () => { swipe = null; refreshIndicator(); });
+document.addEventListener('click', event => {
   if (!swipeClick || event.detail === 0 || performance.now() > swipeClick.until) return;
   if (Math.hypot(event.clientX - swipeClick.x, event.clientY - swipeClick.y) > 24) return;
   swipeClick = null; event.preventDefault(); event.stopImmediatePropagation();
 }, {capture: true});
+
+// Compléter touch-action et le viewport pour Safari iOS, sans bloquer le scroll vertical.
+function preventPageZoom(event) { if (event.cancelable) event.preventDefault(); }
+for (const type of ['gesturestart', 'gesturechange', 'gestureend', 'dblclick']) {
+  document.addEventListener(type, preventPageZoom, {passive: false});
+}
+let tapStart = null;
+let lastTap = null;
+document.addEventListener('touchstart', event => {
+  if (event.touches.length !== 1) {
+    tapStart = null; lastTap = null; preventPageZoom(event); return;
+  }
+  const touch = event.touches[0];
+  tapStart = {id: touch.identifier, x: touch.clientX, y: touch.clientY, started: performance.now()};
+}, {capture: true, passive: false});
+document.addEventListener('touchmove', event => {
+  if (event.touches.length > 1) {
+    tapStart = null; lastTap = null; preventPageZoom(event); return;
+  }
+  const touch = event.touches[0];
+  if (tapStart && touch && Math.hypot(touch.clientX - tapStart.x, touch.clientY - tapStart.y) > 10) {
+    tapStart = null; lastTap = null;
+  }
+}, {capture: true, passive: false});
+document.addEventListener('touchend', event => {
+  const tap = tapStart; tapStart = null;
+  if (!tap || event.touches.length || performance.now() - tap.started > 350) return;
+  const touch = Array.from(event.changedTouches).find(item => item.identifier === tap.id);
+  if (!touch) return;
+  const now = performance.now();
+  const doubleTap = lastTap && now - lastTap.time < 300
+    && Math.hypot(touch.clientX - lastTap.x, touch.clientY - lastTap.y) < 24;
+  lastTap = {time: now, x: touch.clientX, y: touch.clientY};
+  if (!doubleTap) return;
+  preventPageZoom(event);
+  // Le second toucher reste un clic pour les boutons, liens et branches dépliables.
+  const control = event.target.closest('button, a, summary');
+  if (control && !control.disabled) control.click();
+}, {capture: true, passive: false});
+document.addEventListener('touchcancel', () => { tapStart = null; lastTap = null; }, {capture: true});
 $('settings-button').onclick = () => {
   $('settings-dialog').showModal();
   preparePush();
@@ -445,7 +491,17 @@ window.addEventListener('online', async () => {
   else render();
 });
 window.addEventListener('offline', render);
+let appWorker = null;
+let lastWorkerCheck = null;
+function checkAppUpdate() {
+  if (!appWorker || document.hidden || !navigator.onLine) return;
+  const now = performance.now();
+  if (lastWorkerCheck !== null && now - lastWorkerCheck < 60000) return;
+  lastWorkerCheck = now;
+  appWorker.update().catch(() => {});
+}
 function refreshOnReturn() {
+  checkAppUpdate();
   if (!state.session || document.hidden || !navigator.onLine || state.refreshing) return;
   // Un même retour déclenche souvent focus, pageshow et visibilitychange à la suite.
   if (state.lastRefreshStarted !== null && performance.now() - state.lastRefreshStarted < 800) return;
@@ -459,7 +515,10 @@ async function start() {
   if (/iPhone/.test(navigator.userAgent)) $('device-name').value = 'Mon iPhone';
   const ios = /iPhone|iPad|iPod/.test(navigator.userAgent) || navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1;
   $('install-hint').hidden = !(ios && !(matchMedia('(display-mode: standalone)').matches || navigator.standalone));
-  if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js', {updateViaCache: 'none'})
+      .then(registration => { appWorker = registration; checkAppUpdate(); }).catch(() => {});
+  }
   if (await stored('logout_pending')) { const done = await finishLogout(); showAssociation(done ? 'Cet appareil est déconnecté.' : 'La copie locale a été effacée. Reconnectez-vous au réseau pour terminer la déconnexion.'); return; }
   const cached = await stored('session');
   state.noteReads = await stored('noteReads') || {};

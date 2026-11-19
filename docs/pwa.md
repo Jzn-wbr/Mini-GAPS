@@ -88,20 +88,27 @@ lecture. Aucun de ces gestes n’exécute une récupération scolaire.
 
 Un glissement vers la gauche avance ; vers la droite, il recule.
 
-- Sur Notes ou Absences, il sélectionne l’onglet voisin, dans l’ordre Horaire,
+- Sur toute la page, y compris les titres, marges, espaces vides et barre de
+  navigation inférieure, il sélectionne l’onglet voisin dans l’ordre Horaire,
   Notes, Absences. Aucun rebouclage de la dernière à la première page.
-- Sur Horaire, il change le jour. S’il commence sur la bande des sept jours,
-  il change la semaine (sept jours). La barre inférieure permet toujours de
-  quitter Horaire pour consulter les autres pages.
+- Sur Horaire, les zones calendrier font exception : la bande des sept jours
+  change la semaine ; la liste des cours (ou son message de journée vide) et les
+  contrôles de date changent le jour. Le bouton « Aujourd’hui », encadré pour
+  signaler son caractère interactif, revient à la date actuelle.
 
 La reconnaissance utilise les événements tactiles natifs, sans dépendance ni
 animation permanente. Elle exige un mouvement principalement horizontal d’au
 moins 60 px, terminé en 800 ms maximum. Les gestes verticaux, diagonaux dominés
-par le vertical, à plusieurs doigts, sur les contrôles hors bande des jours et dans les réglages ne
-changent pas de page. Les mouvements commencent sur le contenu, hors d’une zone
-de 24 px au bord gauche/droit, pour laisser les gestes de navigateur disponibles.
+par le vertical, à plusieurs doigts, dans les champs de saisie et dans les réglages ne
+changent pas de page. Les gestes sont écoutés sur le document entier.
 Le clic résiduel après un glissement est filtré afin d’éviter d’ouvrir une branche
 ou de sélectionner un jour par accident ; un nouveau toucher reste disponible.
+
+Le zoom de page par pincement ou double toucher est désactivé : viewport à
+échelle fixe, `touch-action: pan-y` et gardes tactiles pour Safari. Le défilement
+vertical reste disponible et deux touchers rapides sur un bouton restent des
+actions utilisables. Les fonctions d’agrandissement du système d’exploitation
+restent sous le contrôle de l’utilisateur.
 
 Les contrôles tactiles sont vérifiés dans Chromium. Les gestes système et le
 ressenti Safari doivent encore être observés sur l’iPhone réel.
@@ -156,6 +163,18 @@ révocation distante ne peut pas effacer immédiatement une copie sur un télép
 déconnecté ; cette limite a été discutée et acceptée.
 
 ## Installation et notifications
+
+### Mise à jour de l’interface
+
+Les URL CSS/JavaScript portent la version de la coque, identique à celle du
+cache du service worker. L’installation recharge explicitement les fichiers et
+la recherche d’une nouvelle version du worker ignore le cache HTTP. Une reprise
+de focus vérifie les mises à jour, au plus une fois par minute et sans minuterie
+permanente. Lorsqu’une nouvelle coque remplace un ancien cache, les fenêtres
+sont rechargées sans effacer les cookies, IndexedDB ou les abonnements Push.
+La version est visible dans les réglages et sur l’écran d’association.
+Une interface ancienne déjà ouverte doit d’abord contacter le serveur ou être
+réouverte réellement pour recevoir ce nouveau mécanisme.
 
 Le manifeste utilise le mode `standalone`, une portée `/` et des icônes PNG
 192/512 pixels ainsi qu'une icône Apple 180 pixels. HTTPS sera nécessaire sur
