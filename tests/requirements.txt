@@ -1,0 +1,2 @@
+# Outils de tests API uniquement, absents de l'image runtime.
+httpx2==2.16.2

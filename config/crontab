@@ -1,0 +1,2 @@
+# Exécuté par Supercronic, dans le conteneur scraper, fuseau Europe/Zurich.
+*/10 6-23 * * * python -m gaps_scraper sync --scheduled

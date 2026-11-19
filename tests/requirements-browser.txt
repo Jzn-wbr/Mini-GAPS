@@ -1,0 +1,2 @@
+# Facultatif : tests de l'interface, jamais utilisé pour récupérer GAPS.
+playwright==1.65.2

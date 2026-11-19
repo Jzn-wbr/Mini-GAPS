@@ -1,0 +1,71 @@
+name: mini-gaps
+
+services:
+  scraper:
+    image: gaps-school:local
+    pull_policy: never
+    command: ["scheduler"]
+    user: "${LOCAL_UID:-1000}:${LOCAL_GID:-1000}"
+    init: true
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 128m
+    cpus: 0.5
+    pids_limit: 32
+    logging:
+      driver: json-file
+      options:
+        max-size: "2m"
+        max-file: "2"
+    environment:
+      DEV: ${DEV:-false}
+      TZ: Europe/Zurich
+      GAPS_DATA_DIR: /app/data/private
+      GAPS_CREDENTIALS_FILE: /run/secrets/app.env
+      GAPS_VAPID_KEY: /app/data/push/vapid.pem
+    secrets:
+      - source: app_configuration
+        target: app.env
+    volumes:
+      - ./data/private:/app/data/private
+      - ./data/push:/app/data/push
+    restart: unless-stopped
+    stop_grace_period: 4m
+  api:
+    image: gaps-school:local
+    build:
+      context: .
+      target: runtime
+    command: ["api", "--host", "0.0.0.0"]
+    user: "${LOCAL_UID:-1000}:${LOCAL_GID:-1000}"
+    init: true
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 256m
+    cpus: 0.5
+    pids_limit: 64
+    logging:
+      driver: json-file
+      options:
+        max-size: "2m"
+        max-file: "2"
+    environment:
+      DEV: ${DEV:-false}
+      APP_ORIGIN: ${APP_ORIGIN:-}
+      GAPS_DATA_DIR: /app/data/private
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - ./data/private:/app/data/private
+    healthcheck:
+      test: ["CMD", "python", "-c", "from urllib.request import Request,urlopen; import os; from urllib.parse import urlsplit; from gaps_scraper.common.runtime import app_origin; r=Request('http://127.0.0.1:8000/healthz',headers={'Host':urlsplit(app_origin()).netloc}); urlopen(r,timeout=3).close()"]
+      interval: 60s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
+secrets:
+  app_configuration:
+    file: ./.env
