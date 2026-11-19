@@ -119,8 +119,8 @@ def main():
                 page.on('pageerror',lambda e:errors.append(str(e)))
                 page.goto(origin)
                 expect(page.locator('#association')).to_be_visible()
-                assert page.locator('script[type=module]').get_attribute('src')=='/assets/app.js?v=13'
-                assert page.locator('link[rel=stylesheet]').get_attribute('href')=='/assets/app.css?v=13'
+                assert page.locator('script[type=module]').get_attribute('src')=='/assets/app.js?v=14'
+                assert page.locator('link[rel=stylesheet]').get_attribute('href')=='/assets/app.css?v=14'
                 page.evaluate("""async () => {
                     await navigator.serviceWorker.ready;
                     if (!navigator.serviceWorker.controller) await new Promise(resolve =>
@@ -244,7 +244,7 @@ def main():
                 assert page.evaluate('document.documentElement.scrollWidth <= window.innerWidth')
                 if args.screenshot:page.screenshot(path=args.screenshot,full_page=True)
                 page.locator('#settings-button').click()
-                expect(page.locator('#app-version')).to_have_text('Version de l’interface : 13')
+                expect(page.locator('#app-version')).to_have_text('Version de l’interface : 14')
                 settings=page.locator('#settings-dialog').bounding_box()
                 settings_cdp=context.new_cdp_session(page)
                 try:swipe_touch(settings_cdp,260,settings['y']+settings['height']/2,-130)
@@ -401,10 +401,28 @@ def main():
                 page.set_viewport_size({'width':390,'height':844});page.evaluate('scrollTo(0,0)')
                 page.locator('[data-tab="horaire"]').click()
                 page.evaluate("async () => { await navigator.serviceWorker.ready; if (!navigator.serviceWorker.controller) await new Promise(resolve => navigator.serviceWorker.addEventListener('controllerchange', resolve, {once:true})); }")
+                # Annuler ou Échap conservent la session et l'abonnement aux notifications.
+                session_before=context.request.get(origin+'/api/session').json()['id']
+                push_before=context.request.get(origin+'/api/push/config').json()['subscribed']
+                page.locator('#settings-button').click();page.locator('#logout').click()
+                expect(page.locator('#logout-dialog')).to_be_visible()
+                expect(page.locator('#logout-dialog button[autofocus]')).to_be_focused()
+                page.get_by_role('button',name='Annuler',exact=True).click()
+                expect(page.locator('#logout-dialog')).to_be_hidden()
+                expect(page.locator('#settings-dialog')).to_be_visible()
+                assert context.request.get(origin+'/api/session').json()['id']==session_before
+                assert context.request.get(origin+'/api/push/config').json()['subscribed']==push_before
+                page.locator('#logout').click();page.keyboard.press('Escape')
+                expect(page.locator('#logout-dialog')).to_be_hidden()
+                expect(page.locator('#settings-dialog')).to_be_visible()
+                assert context.request.get(origin+'/api/session').json()['id']==session_before
+                page.locator('.close-dialog').click()
                 context.set_offline(True);page.reload(wait_until='domcontentloaded')
                 expect(page.locator('#freshness')).to_have_text('Hors connexion')
                 expect(page.locator('.event-card')).to_have_count(3)
                 page.locator('#settings-button').click();page.locator('#logout').click()
+                expect(page.locator('#logout-dialog')).to_be_visible()
+                page.locator('#logout-confirm').click()
                 expect(page.locator('#association')).to_be_visible()
                 expect(page.locator('.event-card')).to_have_count(0)
                 page.reload(wait_until='domcontentloaded');expect(page.locator('#association')).to_be_visible()

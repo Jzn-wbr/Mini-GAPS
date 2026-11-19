@@ -135,6 +135,12 @@ nouveau repliées, tandis que les repères de lecture sont conservés.
 
 ## Association et confidentialité
 
+Le bouton « Se déconnecter » ouvre une confirmation avec « Annuler » sélectionné
+par défaut et « Se déconnecter » pour valider. Annuler ou fermer par Échap
+revient aux réglages sans effacer les données, révoquer la session ou toucher
+aux notifications. Seule la confirmation déclenche la déconnexion, y compris
+l’effacement local et la révocation différée lorsque le téléphone est hors réseau.
+
 La page publique ne contient que l'interface générique et le formulaire
 d'association. Les écrans personnels sont remplis après vérification de
 `/api/session`. Le code temporaire est envoyé dans un POST JSON, effacé du

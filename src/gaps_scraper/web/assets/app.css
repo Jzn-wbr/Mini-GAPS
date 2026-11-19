@@ -515,6 +515,9 @@ dialog::backdrop {
   line-height:1.5;
   margin-top:16px;
 }
+.logout-actions { display:flex; gap:10px; margin-top:24px; }
+.logout-actions button { flex:1; width:auto; margin:0; padding:13px 10px; border-radius:10px; font-size:12px; line-height:1.5; }
+.secondary-button { background:var(--surface); border:1px solid var(--module-line); color:var(--ink); }
 button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible {
   outline:2px solid var(--accent);
   outline-offset:4px;

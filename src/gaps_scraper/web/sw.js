@@ -1,5 +1,5 @@
-const CACHE = 'mon-ecole-shell-v13';
-const ASSETS = ['/', '/assets/app.css?v=13', '/assets/app.js?v=13', '/assets/icon-32.png', '/assets/icon-180.png', '/assets/icon-192.png', '/assets/icon-512.png', '/manifest.webmanifest'];
+const CACHE = 'mon-ecole-shell-v14';
+const ASSETS = ['/', '/assets/app.css?v=14', '/assets/app.js?v=14', '/assets/icon-32.png', '/assets/icon-180.png', '/assets/icon-192.png', '/assets/icon-512.png', '/manifest.webmanifest'];
 const ASSET_PATHS = new Set(ASSETS.map(path => new URL(path, self.location.origin).pathname));
 
 self.addEventListener('install', event => {

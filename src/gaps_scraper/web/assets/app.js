@@ -75,6 +75,7 @@ async function request(path, body) {
 }
 function showAssociation(message = '') {
   if ($('settings-dialog').open) $('settings-dialog').close();
+  if ($('logout-dialog').open) $('logout-dialog').close('cancel');
   $('loading').hidden = true;
   $('workspace').hidden = true;
   $('navigation').hidden = true;
@@ -375,7 +376,7 @@ let swipe = null;
 let swipeClick = null;
 document.addEventListener('touchstart', event => {
   swipe = null; swipeClick = null; refreshIndicator();
-  if (!state.session || $('settings-dialog').open || event.touches.length !== 1) return;
+  if (!state.session || $('settings-dialog').open || $('logout-dialog').open || event.touches.length !== 1) return;
   const touch = event.touches[0];
   if (window.getSelection()?.isCollapsed === false) return;
   const week = state.tab === 'horaire' && Boolean(event.target.closest('.week-strip'));
@@ -405,7 +406,7 @@ document.addEventListener('touchmove', event => {
 document.addEventListener('touchend', event => {
   const gesture = swipe; swipe = null; refreshIndicator();
   if (!gesture || event.touches.length || !state.session
-      || gesture.generation !== state.generation || gesture.tab !== state.tab || $('settings-dialog').open) return;
+      || gesture.generation !== state.generation || gesture.tab !== state.tab || $('settings-dialog').open || $('logout-dialog').open) return;
   const touch = Array.from(event.changedTouches).find(item => item.identifier === gesture.id);
   if (!touch) return;
   const dx = touch.clientX - gesture.x, dy = touch.clientY - gesture.y;
@@ -479,13 +480,22 @@ $('settings-button').onclick = () => {
   $('settings-dialog').showModal();
   preparePush();
 };
-$('logout').onclick = async () => {
+$('logout').onclick = () => {
+  $('settings-dialog').close();
+  $('logout-dialog').returnValue = 'cancel';
+  $('logout-dialog').showModal();
+};
+$('logout-dialog').addEventListener('close', async () => {
+  if ($('logout-dialog').returnValue !== 'confirm') {
+    if (state.session && $('association').hidden) $('settings-dialog').showModal();
+    return;
+  }
   const registration = state.push?.registration;
-  $('settings-dialog').close(); await erase(true); showAssociation('Effacement de la copie locale…');
+  await erase(true); showAssociation('Effacement de la copie locale…');
   if (registration) registration.pushManager.getSubscription().then(sub => sub?.unsubscribe()).catch(() => {});
   const finished = await finishLogout();
   showAssociation(finished ? 'Cet appareil est déconnecté. Les données locales ont été effacées.' : 'La copie locale est effacée. La déconnexion serveur sera terminée au retour du réseau.');
-};
+});
 window.addEventListener('online', async () => {
   if (await stored('logout_pending')) { await finishLogout(); showAssociation(); }
   else render();
